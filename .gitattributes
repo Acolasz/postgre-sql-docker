@@ -1,0 +1,5 @@
+# Declare files that will always have LF line endings on checkout.
+# SH files executed inside Docker container would have problems with (windows) CRLF line endings.
+*.sh text eol=lf
+*.properties text eol=lf
+*.cli text eol=lf

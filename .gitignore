@@ -1,0 +1,43 @@
+## Idea ##
+.idea/
+/**/*.iml
+/**/*.iws
+/**/*.dot
+/**/out/
+
+## Eclipse ##
+/**/.classpath
+/**/.project
+/**/.settings/
+
+
+## Mac ##
+.DS_Store
+
+# Maven
+/**/log/
+/**/target
+/**/.flattened-pom.xml
+/**/bin
+/**/oms-rest/
+/**/.externalToolBuilders
+/**/.springBeans
+/**/.tern-project
+/**/dependency-reduced-pom.xml
+
+# Git
+/**/*.orig
+/**/*.rej
+/**/.editorconfig
+/.metadata/
+
+/**/npm-debug.log
+
+.vscode/
+
+## Other
+install/apps/
+pom.xml.versionsBackup
+/**/*.docx
+/**/~*.docx
+custom/
