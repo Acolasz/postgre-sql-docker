@@ -12,6 +12,10 @@ docker build -t acolasz/postgres:13.0 \
 ```shell script
 docker run -d --name p-1 -v d:/workspace/github/Docker/postgre-sql-docker/data/${db_name}:/var/lib/postgresql/data -p 5444:5432 acolasz/postgres:13.0
 ```
+### Exec
+```shell script
+docker exec -it p-1 psql -U ${db_user_name} ${db_name}
+```
 ### JDBC:
 ```shell script
 jdbc:postgresql://localhost:5444/${db_name}
