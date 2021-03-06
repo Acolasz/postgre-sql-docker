@@ -2,16 +2,19 @@
 
 ###############################
 # Functions:
-isDir() {
-  cat <<EOF
+function isDir() {
+  if [[ ! -d $1 ]]; then
+    cat <<EOF
 ------------------------
 Not exists "$1" directory!
 Correct path: c:/path/to/folder/
 -------------------------
 EOF
+    exit 1
+  fi
 }
 
-defaultDB() {
+function defaultDB() {
   cat <<EOF
 -------------------
 | db_name      = $1
@@ -21,7 +24,7 @@ defaultDB() {
 EOF
 }
 
-initDB() {
+function initDB() {
   cat <<EOF
 -------------------
 Default:
@@ -30,7 +33,7 @@ Default:
 EOF
 }
 
-usage() {
+function usage() {
   cat <<EOF
 ------------------------
 todo...
@@ -39,50 +42,71 @@ EOF
   exit 1
 }
 
-dockerBuildStr() {
+function dockerBuildStr() {
   cat <<EOF
 docker build -t $1 \\
   --build-arg db_name=$2 \\
   --build-arg db_user_name=$2 \\
   --build-arg db_user_psw=$2 \\
-  --build-arg init_db_file=$3 \\
   .
 EOF
 }
 
-dockerBuild() {
+function dockerBuild() {
   echo "--------------------------------------------"
   echo "------------- Create Image -----------------"
   echo "--------------------------------------------"
-
-  dockerBuildStr "$1" "$2" "$3"
-
+  dockerBuildStr "$1" "$2"
+  echo "--------------------------------------------"
   docker build -t "$1" \
   --build-arg db_name="$2" \
   --build-arg db_user_name="$2" \
   --build-arg db_user_psw="$2" \
-  --build-arg init_db_file="$3" \
   .
 }
 
-runContainerStr() {
+function runContainerStr() {
   cat <<EOF
-docker run --rm -it --name "$1" -e POSTGRES_PASSWORD="$2" -p 5444:5432 "$3"
+docker run --rm -it \\
+  --name $1 \\
+  -v $2:/var/lib/postgresql/data \\
+  -p 5444:5432 \\
+  $3
 EOF
 }
 
-runContainer() {
+function runContainer() {
   echo "-------------------------------------------------"
   echo "------------- Container Running -----------------"
   echo "-------------------------------------------------"
-  runContainerStr "$1" "$2"
-  docker run --rm -it --name "$1" -p 5444:5432 "$2"
+  runContainerStr "$1" "$2" "$3"
+  echo "-------------------------------------------------"
+  docker run --rm -it \
+  --name "$1" \
+  -v "$2":/var/lib/postgresql/data \
+  -p 5444:5432 \
+  "$3"
 }
 
-clean() {
+function clean() {
   docker rm $(docker stop $(docker ps -aq --filter name="$1"))
   docker system prune -f
 }
+
+function replaceVolumePath() {
+  pwd=$1
+  driver="${pwd:1:1}"
+  echo "${driver}:${pwd:2}"
+}
+
+function databaseList() {
+  DATABASE=$(ls -1 ./data)
+  echo "-------------------------------------------------"
+  echo "| DataBase lis:"
+  echo "${DATABASE}"
+  echo "-------------------------------------------------"
+}
+
 ###############################
 # Variables:
 PROJECT_NAME=acolasz
@@ -90,11 +114,11 @@ DOCKER_APP_NAME=postgres
 VERSION_TAG=13.0
 IMAGE_NAME=${PROJECT_NAME}/${DOCKER_APP_NAME}:${VERSION_TAG}
 BUILD_ARGS=docker
-BUILD_ARGS_INIT_FILE=init-default-db.sh
+DOCKER_BUILD_PATH=.
 
 LOCAL_VOLUME_PATH=""
-CONTAINER_NAME=default-postgres-db-1
-DOCKER_BUILD_PATH=.
+VOLUME=${BUILD_ARGS}
+CONTAINER_NAME="${VOLUME}"-postgres-db-1
 
 BUILD=false
 RUN=false
@@ -110,6 +134,17 @@ for arg in "$@"; do
     RUN=true
     shift
     ;;
+  -db=* | --set-database=*)
+    BUILD_ARGS="${arg#*=}"
+    VOLUME="${BUILD_ARGS}"
+    mkdir -p ./data/"${VOLUME}"
+    PWD=$(pwd)
+    LOCAL_VOLUME_PATH="${PWD}/data/${VOLUME}"
+    isDir "${LOCAL_VOLUME_PATH}"
+    LOCAL_VOLUME_PATH=$(replaceVolumePath "${LOCAL_VOLUME_PATH}")
+    databaseList
+    shift
+    ;;
   *)
     OTHER_ARGUMENTS+=("$1")
     usage
@@ -118,12 +153,18 @@ for arg in "$@"; do
   esac
 done
 
-clean ${CONTAINER_NAME}
+clean "${CONTAINER_NAME}"
 
-if [ "$BUILD" = true ]; then
-  dockerBuild "${IMAGE_NAME}" "${BUILD_ARGS}" "${BUILD_ARGS_INIT_FILE}"
+if [ "${BUILD}" = true ]; then
+  mkdir -p ./data/"${VOLUME}"
+  PWD=$(pwd)
+  LOCAL_VOLUME_PATH="${PWD}/data/${VOLUME}"
+  isDir "${LOCAL_VOLUME_PATH}"
+  LOCAL_VOLUME_PATH=$(replaceVolumePath "${LOCAL_VOLUME_PATH}")
+  databaseList
+  dockerBuild "${IMAGE_NAME}" "${BUILD_ARGS}"
 fi
 
-if [ "$RUN" = true ]; then
-  runContainer "${CONTAINER_NAME}" "${IMAGE_NAME}"
+if [ "${RUN}" = true ]; then
+  runContainer "${CONTAINER_NAME}" "${LOCAL_VOLUME_PATH}" "${IMAGE_NAME}"
 fi
